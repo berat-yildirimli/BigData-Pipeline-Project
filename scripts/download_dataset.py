@@ -38,7 +38,7 @@ def download_dataset():
         os.system(f"{sys.executable} -m pip install kaggle")
         import kaggle
 
-    output_dir = Path("data/raw")
+    output_dir = Path("processing/data")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     dataset = "olistbr/brazilian-ecommerce"
