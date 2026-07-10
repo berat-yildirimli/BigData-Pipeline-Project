@@ -111,7 +111,7 @@ BigData-Pipeline-Project/
 │   ├── BigData-Pipeline-Project-presentation.pdf
 │   └── ScreenShots/
 │       ├── dashboard 1.png
-│       ├── dashboard 1.png
+│       ├── dashboard 2.png
 │       ├── Hadoop HDFS.png
 │        └──Spark Master.png
 │   
@@ -167,9 +167,27 @@ docker compose -f docker/docker-compose-spark.yml up -d
 
 docker compose -f docker/docker-compose-superset.yml up -d
 ```
-Download the Olist dataset from Kaggle and extract the CSVs into processing/data/. (opt)
 
-Run register_tables.py for table and dataset registration.(opt)
+Download manually the Olist dataset from Kaggle and extract the CSVs into processing/data/
+or use:
+```bash	
+python scripts/download_dataset.py
+```
+
+
+Run the ETL pipeline to convert the CSVs to Parquet and write them to HDFS:
+```bash
+docker exec -it spark-master /spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  /app/processing/analysis.py
+```
+
+ 
+Copy and run `register_tables.py` inside the Superset container (table and dataset registration):
+```bash
+docker cp visualization/register_tables.py superset:/tmp/register_tables.py
+docker exec -it superset python /tmp/register_tables.py
+```
 
 Open:
 

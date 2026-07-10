@@ -1,5 +1,5 @@
 """
-denenmedi
+
 register_tables.py
 
 Bu script iki asamada calisir:
