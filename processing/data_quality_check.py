@@ -61,7 +61,7 @@ def check_table(spark: SparkSession, table: str, key_cols):
 
     # --- Null sayimi ---
     null_counts = df.select([
-        count(when(col(c).isNull(), c)).alias(c) for c in df.columns
+        count(when(col(c).isNull(), 1)).alias(c) for c in df.columns
     ]).collect()[0].asDict()
     nulls_found = {k: v for k, v in null_counts.items() if v > 0}
 
