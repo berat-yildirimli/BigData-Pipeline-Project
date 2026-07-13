@@ -1,0 +1,12 @@
+olist_pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: thrift
+      host: spark-thriftserver
+      port: 10000
+      schema: default
+      connect_retries: 5
+      connect_timeout: 60
+      retry_all: true

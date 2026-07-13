@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: dim_date
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+
+  - name: dim_customer
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+      - name: customer_id
+        tests: [not_null]
+
+  - name: dim_seller
+    columns:
+      - name: seller_key
+        tests: [unique, not_null]
+
+  - name: dim_product
+    columns:
+      - name: product_key
+        tests: [unique, not_null]
+
+  - name: dim_payment_type
+    columns:
+      - name: payment_type_key
+        tests: [unique, not_null]
+
+  - name: fact_order_items
+    columns:
+      - name: order_id
+        tests: [not_null]
+
+  - name: fact_payments
+    columns:
+      - name: order_id
+        tests: [not_null]
+
+  - name: fact_delivery
+    columns:
+      - name: order_id
+        tests: [not_null]
+
+  - name: fact_reviews
+    columns:
+      - name: review_id
+        tests: [not_null]

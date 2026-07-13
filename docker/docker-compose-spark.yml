@@ -61,7 +61,8 @@ services:
           --conf spark.sql.hive.thriftServer.singleSession=false \
           --conf spark.ui.port=4040 \
           --conf spark.sql.warehouse.dir=/tmp/spark-warehouse \
-          --conf spark.hadoop.fs.defaultFS=hdfs://namenode:9000
+          --conf spark.hadoop.fs.defaultFS=hdfs://namenode:9000 \
+          --conf spark.hadoop.fs.hdfs.impl.disable.cache=true
     depends_on:
       - spark-master
     volumes: *spark-volumes

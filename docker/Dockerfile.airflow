@@ -1,0 +1,19 @@
+FROM apache/airflow:3.3.0
+
+# docker CLI: BashOperator ile mevcut spark-master container'ina
+# "docker exec" yapabilmek icin (host'un /var/run/docker.sock'u compose'da mount edilecek)
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends docker.io \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+
+# dbt: Bronze/Silver/Gold donusumlerini Spark Thriftserver (Hive Metastore)
+# uzerinden calistirmak icin dbt-spark[pyhive] adapter'i kullaniyoruz.
+# Versiyonlar Temmuz 2026 itibariyle guncel stabil surumler.
+RUN pip install --no-cache-dir \
+    "dbt-core==1.11.11" \
+    "dbt-spark[pyhive]==1.10.3" \
+    "requests==2.32.3"

@@ -25,3 +25,7 @@ Thumbs.db
 *.crc
 _SUCCESS
 
+# dbt (Phase 3) - target/ ve dbt_packages/ "logs" gibi genel bir isimde
+# olmadigi icin yukaridaki logs/ kurali bunlari kapsamiyor
+dbt_project/target/
+dbt_project/dbt_packages/
