@@ -1,156 +1,87 @@
-# Big Data Analytics Pipeline — Olist E-Commerce
-![Apache Spark](https://img.shields.io/badge/Apache-Spark-orange?style=plastic) ![Hadoop HDFS](https://img.shields.io/badge/Hadoop-HDFS-yellow?style=plastic) ![Apache Hive](https://img.shields.io/badge/Apache-Hive-orange?style=plastic) ![Apache Superset](https://img.shields.io/badge/Apache-Superset-007A87?style=plastic) ![Docker](https://img.shields.io/badge/Docker-blue?style=plastic) ![Python](https://img.shields.io/badge/Python-blue?style=plastic) 
+# Büyük Veri Analitik Pipeline: Faz 2 - Veri Ambarı Tasarımı ve İş Analitiği 🚀
 
-This document describes all the work completed in Phase 1: an end-to-end data pipeline (Spark → HDFS → Superset) built on the Olist Brazilian E-Commerce dataset with using **Apache Spark, Hadoop HDFS, Apache Hive,** and **Apache Superset**
+![Apache Spark](https://img.shields.io/badge/Apache%20Spark-F68A1E?style=for-the-badge&logo=apachespark&logoColor=white)
+![Hadoop](https://img.shields.io/badge/Hadoop-66CC00?style=for-the-badge&logo=apachehadoop&logoColor=white)
+![Apache Hive](https://img.shields.io/badge/Apache%20Hive-FDEE21?style=for-the-badge&logo=apachehive&logoColor=black)
+![Apache Superset](https://img.shields.io/badge/Apache%20Superset-00A699?style=for-the-badge&logo=apache&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
----
-## 💾 Dataset
+> **Geliştirici:** Ahmet Berat Yıldırımlı
 
-[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) — ~100,000 real orders between 2016-2018, across 9 tables:
+## 📖 Proje Özeti
 
-| Table | Row Count |
-| :--- | :--- |
-| olist_customers_dataset | 99,441 |
-| olist_geolocation_dataset | 1,000,163 |
-| olist_order_items_dataset | 112,650 |
-| olist_order_payments_dataset | 103,886 |
-| olist_order_reviews_dataset | 104,162 |
-| olist_orders_dataset | 99,441 |
-| olist_products_dataset | 32,951 |
-| olist_sellers_dataset | 3,095 |
-| product_category_name_translation | 71 |
+Faz 1'de, Olist e-ticaret veri setini 9 ham CSV dosyasından alıp Apache Spark ile Parquet formatına çeviren, Hadoop HDFS'te depolayan, Apache Hive external table'ları üzerinden SQL ile sorgulanabilir hale getiren ve Apache Superset'te görselleştiren uçtan uca bir pipeline kurulmuştu. 
 
-CSV files are placed under `processing/data/`. This folder is excluded via `.gitignore`; the data is not committed to the repository and must be downloaded from Kaggle.
+**Faz 2**, bu mimariyi bir adım öteye taşıyarak şu geliştirmeleri içermektedir:
+*   **Veri Kalite Ölçümü:** 9 ham tablonun tamamında null ve duplicate kontrolleri gerçekleştirildi.
+*   **Veri Temizliği (Silver Katmanı):** Tespit edilen sorunlu tablolar (`geolocation` ve `reviews`) deduplicate edilerek temizlendi.
+*   **Katmanlı Mimari (Medallion):** Tek katmanlı yapıdan **Bronze / Silver / Gold** olmak üzere 3 katmanlı modern veri ambarı mimarisine geçildi.
+*   **Star Schema (Gold Katmanı):** 7 temel iş sorusunu (business question) cevaplamak üzere **4 Fact** ve **5 Dimension** tablosundan oluşan boyutsal model tasarlandı ve Spark ile inşa edildi.
+*   **ETL'den ELT'ye Geçiş:** Hive'da yüklü ham veriler üzerinden SQL/Spark dönüşümleriyle Star Schema oluşturuldu.
+*   **Otomasyon Scriptleri:** Süreçleri otomatize eden `data_quality_check.py`, `build_star_schema.py` ve `register_gold_tables.py` scriptleri eklendi.
 
+## 🛠️ Kullanılan Teknolojiler
 
+*   **İşleme Motoru (ETL/ELT):** Apache Spark (PySpark)
+*   **Dağıtık Depolama:** Hadoop HDFS
+*   **SQL Sorgu Katmanı:** Apache Hive (Spark ThriftServer üzerinden)
+*   **Veri Görselleştirme:** Apache Superset
+*   **Konteynerizasyon:** Docker & Docker Compose
+*   **Veri Formatı:** Apache Parquet
 
+## 🏗️ Mimari (Bronze - Silver - Gold)
 
-## 💻 Technologies
+Proje, her katmanın tek bir görevi olduğu ve sorgu zamanında yalnızca bir önceki katmanı okuduğu üç katmanlı bir mimari izler. Superset yalnızca Gold katmanını sorgulayarak yüksek performans sağlar.
 
-* Python
-* Docker
-* Apache Spark
-* Hadoop HDFS
-* Apache Hive
-* Apache Superset
-* SQL
-
-
-
-
-## System Architecture
-
-```text
-       Olist CSV Dataset
-               │
-               ▼
-         Apache Spark
-      (CSV ➔ Parquet ETL) in analysis.py
-               │
-               ▼
-          Hadoop HDFS
-     (Distributed Storage)
-               │
-               ▼
-         Apache Hive
-       (External Tables)
-               │
-               ▼
-        Apache Superset
-   Simple Charts and Dashboard
+```mermaid
+graph TD
+    A[Olist CSV Dataset] -->|Apache Spark ETL| B(BRONZE Layer: Hadoop HDFS /data/olist)
+    B -->|Deduplication & Cleansing| C(SILVER Layer: /data/silver)
+    C -->|Star Schema Build| D(GOLD Layer: /data/gold)
+    D -->|External Tables| E(Apache Hive via ThriftServer)
+    E -->|Dashboards| F[Apache Superset]
 ```
-## ⚙️ Data Processing Pipeline
 
-This section details the step-by-step pipeline used for processing and analyzing the dataset.
+## 📊 Veri Modeli (Star Schema)
 
-### How the Pipeline Works
+Gold katmanında yer alan veri modeli aşağıdaki tablolardan oluşmaktadır:
 
-####  1. Reading the Raw Data
-* The **9 Olist CSV files** are read into **Spark**.
-* Spark automatically figures out each column's data type on its own (*dates, numbers, text*) instead of treating everything as plain text.
+**Fact Tabloları:**
+1.  `fact_order_items`
+2.  `fact_payments`
+3.  `fact_delivery`
+4.  `fact_reviews`
 
-####  2. Converting to Parquet
-* Each dataset is rewritten in **Parquet**, a columnar file format built for analytics.
-* This keeps **file sizes smaller** and makes later queries noticeably **faster** than scanning raw CSVs.
-
-####  3. Writing to HDFS
-* The Parquet output isn't kept on a single machine's disk.
-* It's written straight into **HDFS**, so the data lives on **distributed, durable storage** shared by every service in the pipeline.
-
-####  4. Making it Queryable
-* On its own, HDFS just holds files. To run **SQL** against them, external tables are registered in **Hive** (through the **Spark ThriftServer**).
-* This points each table name at its HDFS folder **without copying any data**.
-
-####  5. Visualizing the Results
-* **Superset** connects to that same Hive layer and turns the tables into the charts and dashboards described above.
-
-
-## 📊 Dashboard Metrics
-
-The dashboard includes the following business insights:
-
-* **Total Orders & Customers:** Overview of core performance metrics.
-* **Temporal Analysis:** Monthly order counts and order distribution by day/hour.
-* **Category Insights:** Top selling categories.
-* **Geographical Distribution:** Customer distribution by state.
-
-
-## 📂 Project Structure
-
-```text
-BigData-Pipeline-Project/
-│
-├── docker/
-│
-├── processing/
-│   ├── analysis.py
-│   └── data/
-│
-├── reports/
-│   ├── REPORT.md
-│   ├── BigData-Pipeline-Project-presentation.pdf
-│   └── ScreenShots/
-│       ├── dashboard 1.png
-│       ├── dashboard 2.png
-│       ├── Hadoop HDFS.png
-│        └──Spark Master.png
-│   
-├── scripts/
-│   ├── download_dataset.py
-│   ├── setup_network.sh
-│   └── setup_network.ps1
-│
-├── visualization/
-│    └── register_tables.py
-│ 
-├── .gitignore
-└── README.md
-```
-### 🎯 Project Outcomes
-By the end of Phase 1, the following was working end to end:
-
-* ✅ **Automated conversion** of all 9 Olist CSV files into Parquet using **Apache Spark**.
-* ✅ **Distributed, durable storage** of the processed data in **Hadoop HDFS**.
-* ✅ **SQL-queryable access** to that data through **Hive external tables** and the **Spark ThriftServer**.
-* ✅ A live **Apache Superset dashboard** built directly on top of the pipeline.
-* ✅ A **fully reproducible pipeline**, from raw CSV to interactive dashboard, with no manual data copying between stages.
-
-## 📸 Screenshots
-
-### Apache Spark
-
-<img width="1910" height="622" alt="Spark Master" src="https://github.com/user-attachments/assets/4cbe4907-d906-4862-9a88-984719056d91" />
-
-### Hadoop
-<img width="1345" height="600" alt="Hadoop HDFS" src="https://github.com/user-attachments/assets/705a627f-fc3c-4a81-a7e6-de8c80df9946" />
-
-### Dashboard
-<img width="1892" height="746" alt="dashboard 1" src="https://github.com/user-attachments/assets/5453b01a-86e8-4a0f-a15d-67f5b6cf37b8" />
-<img width="1832" height="446" alt="dashboard 2" src="https://github.com/user-attachments/assets/65b4d40a-d23b-4f6b-ab18-8af962e79235" />
+**Dimension Tabloları:**
+1.  `dim_date`
+2.  `dim_customer`
+3.  `dim_seller`
+4.  `dim_product`
+5.  `dim_payment_type`
 
 
 
-## 🚀 Running the Project
+## 📈 İş Soruları ve Superset Dashboard
+
+Aşağıdaki 7 temel iş sorusu doğrudan Gold katmanındaki veri modeli kullanılarak cevaplanmıştır:
+
+| İş Sorusu (Business Question) | Fact Tablosu | Dimension Tabloları |
+| :--- | :--- | :--- |
+| **Aylık ciro analizi** | `fact_order_items` | `dim_date` |
+| **Kategori bazlı gelirler** | `fact_order_items` | `dim_product` |
+| **En yüksek performanslı satıcılar** | `fact_order_items` | `dim_seller` |
+| **Eyalet bazlı satış dağılımı** | `fact_order_items` | `dim_customer` |
+| **Eyalet bazlı ortalama teslimat süresi** | `fact_delivery` | `dim_customer`, `dim_date` |
+| **Ödeme yöntemi trendleri** | `fact_payments` | `dim_payment_type`, `dim_date` |
+| **Kategori bazlı ortalama inceleme puanı** | `fact_reviews` | `dim_product`, `dim_date` |
+
+### Dashboard Çıktılarından Özetler:
+*   **Gelir Trendleri:** 2017 boyunca hızlı bir büyüme yaşanmış, 2018 itibariyle sabitlenmiştir.
+*   **Coğrafi Satışlar:** São Paulo (SP) eyaleti toplam ciroda açık ara liderdir.
+*   **Ödeme Yöntemleri:** Kredi kartı kullanımı baskın ve en hızlı büyüyen yöntemdir.
+*   **Teslimat Süreleri:** Eyaletlere göre farklılık göstererek ~9 gün (SP) ile ~29 gün (Roraima) arasında değişmektedir.
+*   **Müşteri Memnuniyeti:** Puan ve yorum hacmini aynı anda göstermek için "Bubble Chart" tercih edilmiş, istatistiksel güvenilirlik için 20'den az yoruma sahip kategoriler filtrelenmiştir.
+## 🚀 Running the Project phase 1
 
 Clone the repository:
 
@@ -202,5 +133,26 @@ Default Superset credentials:
 ```text
 Username: admin
 Password: admin
+```
+
+## 🚀 Çalıştırma Adımları ve Otomasyon phase 2
+
+### 1. Veri Kalite Kontrolü
+Bronze tablolarında null ve duplicate taraması yapılır.
+```bash
+docker exec -it spark-master /spark/bin/spark-submit   --master spark://spark-master:7077   /app/processing/data_quality_check.py
+```
+
+### 2. Silver ve Gold Katmanlarının İnşası
+Sorunlu tablolar temizlenir (Silver) ve Parquet formatında Star Schema (Gold) oluşturulur.
+```bash
+docker exec -it spark-master /spark/bin/spark-submit   --master spark://spark-master:7077   /app/processing/build_star_schema.py
+```
+
+### 3. Gold Tablolarının Hive ve Superset'e Kaydedilmesi
+Oluşturulan tablolar Hive'a external table olarak eklenir ve Superset'e kaydedilir.
+```bash
+docker cp visualization/register_gold_tables.py superset:/tmp/register_gold_tables.py
+docker exec -it superset python /tmp/register_gold_tables.py
 ```
 
